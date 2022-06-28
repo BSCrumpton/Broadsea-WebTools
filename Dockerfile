@@ -5,10 +5,10 @@ MAINTAINER Lee Evans - www.ltscomputingllc.com
 # OHDSI WebAPI and ATLAS web application running in Tomcat
 
 # set the WEBAPI_RELEASE environment variable within the Docker container
-ENV WEBAPI_RELEASE=2.9.0
+ENV WEBAPI_RELEASE=2.11.0
 
 # optionally override the war file url when building this container using: --build-arg WEBAPI_WAR=<webapi war file name>
-ARG WEBAPI_WAR=WebAPI-2.9.0.war
+ARG WEBAPI_WAR=WebAPI-2.11.0.war
 
 # install linux utilities and supervisor daemon
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nodejs \
     curl \
     git-core \
+    openssh-server \
     && rm -rf /var/lib/apt/lists/*
 
 # install specific npm version for this build
@@ -53,6 +54,7 @@ RUN npm run build
 
 # create directories for optional jdbc drivers and the log files
 RUN mkdir -p /tmp/drivers /var/log/supervisor
+COPY SparkJDBC42.jar /tmp/drivers/SparkJDBC42.jar
 
 # install supervisord configuration file
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
@@ -67,5 +69,17 @@ COPY config-gis.js /usr/local/tomcat/webapps/atlas/js/
 COPY deploy-script.sh /usr/local/tomcat/bin/
 RUN chmod +x /usr/local/tomcat/bin/deploy-script.sh
 
+COPY custom-startup.sh /custom-startup.sh
+RUN chmod +x /custom-startup.sh
+RUN echo "root:Docker!" | chpasswd 
+COPY sshd_config /etc/ssh/
+
+RUN mkdir -p /tmp
+COPY ssh_setup.sh /tmp
+RUN chmod +x /tmp/ssh_setup.sh \
+    && (sleep 1;/tmp/ssh_setup.sh 2>&1 > /dev/null)
+
 # run supervisord to execute the deploy script (which also starts the tomcat server)
-CMD ["/usr/bin/supervisord"]
+CMD ["/usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"]
+
+EXPOSE 8080

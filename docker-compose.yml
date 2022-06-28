@@ -7,6 +7,7 @@ services:
     image: ohdsi/broadsea-webtools
     ports:
       - "8080:8080"
+      - "80:2222"
     volumes:
      - .:/tmp/drivers/:ro
      - ./config-local.js:/usr/local/tomcat/webapps/atlas/js/config-local.js:ro
